@@ -1,0 +1,152 @@
+<form version="1.1">
+  <label>대시보드</label>
+
+  <fieldset submitButton="true">
+    <input type="dropdown" token="left_location">
+      <label>지역</label>
+      <choice value="gangnam">강남</choice>
+      <choice value="jongro">종로</choice>
+      <choice value="guro">구로</choice>
+      <choice value="gwanak">관악</choice>
+      <choice value="dongjak">동작</choice>
+      <default>gangnam</default>
+    </input>
+
+    <input type="dropdown" token="left_date">
+      <label>날짜</label>
+      <fieldForLabel>date</fieldForLabel>
+      <fieldForValue>date</fieldForValue>
+      <search>
+        <query>
+          index=sensor
+          | where strftime(_indextime, "%Y-%m-%d") = "2025-04-15"
+          | stats count by date
+          | sort date
+        </query>
+      </search>
+      <default>2025-04-01</default>
+    </input>
+
+    <input type="dropdown" token="right_hour">
+      <label>시간(시)</label>
+      <choice value="00">00</choice>
+      <choice value="01">01</choice>
+      <choice value="02">02</choice>
+      <choice value="03">03</choice>
+      <choice value="04">04</choice>
+      <choice value="05">05</choice>
+      <choice value="06">06</choice>
+      <choice value="07">07</choice>
+      <choice value="08">08</choice>
+      <choice value="09">09</choice>
+      <choice value="10">10</choice>
+      <choice value="11">11</choice>
+      <choice value="12">12</choice>
+      <choice value="13">13</choice>
+      <choice value="14">14</choice>
+      <choice value="15">15</choice>
+      <choice value="16">16</choice>
+      <choice value="17">17</choice>
+      <choice value="18">18</choice>
+      <choice value="19">19</choice>
+      <choice value="20">20</choice>
+      <choice value="21">21</choice>
+      <choice value="22">22</choice>
+      <choice value="23">23</choice>
+      <default>14</default>
+    </input>
+
+    <input type="dropdown" token="right_minute">
+      <label>시간(분)</label>
+      <choice value="00">00</choice>
+      <choice value="10">10</choice>
+      <choice value="20">20</choice>
+      <choice value="30">30</choice>
+      <choice value="40">40</choice>
+      <choice value="50">50</choice>
+      <default>00</default>
+    </input>
+  </fieldset>
+
+  <row>
+    <panel>
+      <title>$left_date$ [$left_location$] - 쓰레기 추이</title>
+      <chart>
+        <search>
+          <query>
+            index=sensor
+            | where strftime(_indextime, "%Y-%m-%d") = "2025-04-15"
+              AND date="$left_date$"
+              AND location="$left_location$"
+            | eval datetime = strptime(date." ".time, "%Y-%m-%d %H:%M:%S")
+            | sort datetime
+            | timechart span=10m avg(trash_level) as "Trash Level"
+          </query>
+        </search>
+        <option name="charting.chart">line</option>
+      </chart>
+    </panel>
+
+    <panel>
+      <title>$left_date$ $right_hour$:$right_minute$ - 지역별 쓰레기량</title>
+      <chart>
+        <search>
+          <query>
+            index=sensor
+            | where strftime(_indextime, "%Y-%m-%d") = "2025-04-15"
+              AND date="$left_date$"
+              AND substr(time,1,2)="$right_hour$"
+              AND substr(time,4,2)="$right_minute$"
+            | stats avg(trash_level) as "Trash Level" by location
+          </query>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.seriesColors">["0xffadad"]</option>
+      </chart>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>$left_date$ - 지역별 총 봉사자 수</title>
+      <chart>
+        <search>
+          <query>
+            index=volunteer
+            | where strftime(_indextime, "%Y-%m-%d") = "2025-04-15"
+              AND date="$left_date$"
+            | spath input=gender_distribution
+            | eval total_volunteers = 'gender_distribution.female' + 'gender_distribution.male'
+            | stats sum(total_volunteers) as "Total Volunteers" by district
+          </query>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.seriesColors">["0xc17c74"]</option>
+      </chart>
+    </panel>
+
+    <panel>
+      <title>$left_date$ - 지역별 봉사 요청/수행</title>
+      <chart>
+        <search>
+          <query>
+            index=volunteer
+            | where strftime(_indextime, "%Y-%m-%d") = "2025-04-15"
+              AND date="$left_date$"
+            | stats sum(volunteer_requested) as Requested, sum(volunteer_performed) as Performed by district
+          </query>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.seriesColors">["0xf4a259", "0xfdd9a0"]</option>
+      </chart>
+    </panel>
+  </row>
+</form>
